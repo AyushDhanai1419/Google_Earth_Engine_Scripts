@@ -1,0 +1,56 @@
+var point = /* color: #98ff00 */ee.Geometry.Point([78.02949426914063, 30.318051180311702]);
+//Initialization of visual parameters
+var rgb_vis = {min: 0, max: 0.3, bands: ['B4', 'B3','B2']};
+var ndvi_vis = {min:0, max:1, bands:['nd']};
+
+function getDataset(){
+        var dataset = ee.ImageCollection('COPERNICUS/S2')
+                      .filterBounds(point)
+                      .filterDate('2015-01-01', '2018-12-31')
+                      ;
+                      
+
+        var filtered_dataset = [
+            //Landsat 8 Dataset
+            ee.Image(dataset.filterDate('2015-01-01', '2015-12-31').sort('CLOUDY_PIXEL_PERCENTAGE').first()).set("Year", 2015),
+            ee.Image(dataset.filterDate('2016-01-01', '2016-12-31').sort('CLOUDY_PIXEL_PERCENTAGE').first()).set("Year", 2016),
+            ee.Image(dataset.filterDate('2017-01-01', '2017-12-31').sort('CLOUDY_PIXEL_PERCENTAGE').first()).set("Year", 2017),
+            ee.Image(dataset.filterDate('2018-01-01', '2018-12-31').sort('CLOUDY_PIXEL_PERCENTAGE').first()).set("Year", 2018),
+        
+        ];
+
+     return filtered_dataset;
+}
+
+//Receiving filtered dataset
+var L8 = getDataset();
+print("L8 : ",L8);  //Displaying datasets
+
+function addNDVI(image){ 
+        var ndvi = image.normalizedDifference(['B8', 'B4']);
+        return image.addBands(ndvi);
+}
+
+
+var ndvi = L8.map(addNDVI);
+print("NDVI : ",ndvi); //Displaying NDVI dataset
+
+
+print(ui.Chart.image.seriesByRegion(ndvi,point,ee.Reducer.mean(),'nd',500,'Year', 'system:index')
+                .setChartType('LineChart')
+                .setOptions({
+                title: 'NDVI Time Series',
+                hAxis: {title: 'Years'},
+                vAxis: {title: 'NDVI'}
+}));
+
+
+
+
+var j=0;
+for(var i=15;i<=18;i++)
+{
+  //Map.addLayer(L8[j], rgb_vis, 'Layer - 20'+i, false); // disable the RGB layer by default
+  Map.addLayer(ndvi[j], ndvi_vis, 'NDVI_Layer - 20'+i);
+  j++;
+}

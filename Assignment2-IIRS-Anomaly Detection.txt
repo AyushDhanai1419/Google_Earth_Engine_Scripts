@@ -1,0 +1,100 @@
+var point = /* color: #ff0000 */ee.Geometry.Point([78.04386659578836, 30.331168670396437]);
+//Initialization of visual parameters
+var rgb_vis = {min: 0, max: 0.3, bands: ['B4', 'B3','B2']};
+var ndvi_vis = {min:0, max:1, bands:['nd']};
+
+function getDataset(){
+        var dataset = ee.ImageCollection('LANDSAT/LC08/C01/T1_TOA')
+                      .filterBounds(point)
+                      .filterDate('2013-01-01', '2018-12-31')
+                      ;
+                      
+
+        var filtered_dataset = [
+            //Landsat 8 Dataset
+            ee.Image(dataset.filterDate('2013-01-01', '2013-12-31').sort('CLOUD_COVER').first()).set("Year", 2013),
+            ee.Image(dataset.filterDate('2014-01-01', '2014-12-31').sort('CLOUD_COVER').first()).set("Year", 2014),
+            ee.Image(dataset.filterDate('2015-01-01', '2015-12-31').sort('CLOUD_COVER').first()).set("Year", 2015),
+            ee.Image(dataset.filterDate('2016-01-01', '2016-12-31').sort('CLOUD_COVER').first()).set("Year", 2016),
+            ee.Image(dataset.filterDate('2017-01-01', '2017-12-31').sort('CLOUD_COVER').first()).set("Year", 2017),
+            ee.Image(dataset.filterDate('2018-01-01', '2018-12-31').sort('CLOUD_COVER').first()).set("Year", 2018),
+        
+        ];
+
+     return filtered_dataset;
+}
+
+//Receiving filtered dataset
+var L8 = getDataset();
+print("L8 : ",L8);                    //Displaying datasets
+
+function addNDVI(image){ 
+        var ndvi = image.normalizedDifference(['B5', 'B4']);
+        return image.addBands(ndvi);
+}
+
+
+var ndvi = L8.map(addNDVI);
+print("NDVI : ",ndvi);               //Displaying NDVI dataset
+
+
+print(ui.Chart.image.series(ee.ImageCollection(ndvi).select(['nd']),point)
+                .setChartType('LineChart')
+                .setOptions({
+                title: 'NDVI Time Series',
+                hAxis: {title: 'Time In Years'},
+                vAxis: {title: 'NDVI'}
+}));
+
+// Extract the 'nd' pixel value from point on map. 
+var data=[];
+for(var i=0;i<=5;i++)
+{
+  data[i] = ee.Number(ndvi[i]
+  .select("nd")
+  .reduceRegion(ee.Reducer.first(),point,10)
+  .get("nd"));
+}
+
+// Show pixel data value
+//print(data);
+
+
+//Finding anomaly 
+//print(i +"  :  "+ (((ee.Number(ee.List(data).get(0)).subtract(ee.Number(ee.List(data).get(1))))).abs()).getInfo());
+  
+var threshold = 0.2;  
+for(var i=1;i<6;i++)
+{
+  
+  
+  
+  var difference = (((ee.Number(ee.List(data).get(i)).subtract(ee.Number(ee.List(data).get(i-1))))).abs()).getInfo();
+  
+  // Printing Difference between NDVI value of data between 2 years
+  print("201"+ (i+2) +"-201"+(i+3)+" NDVI Difference =>> "+ difference);
+  if(difference >= threshold)
+  {
+    print("Anomaly Detected in year 201"+(i+3));
+  }
+  
+}
+
+
+
+
+
+
+
+
+
+Map.centerObject(L8[0], 8);
+
+var j=0;
+for(var i=13;i<=18;i++)
+{
+  Map.addLayer(L8[j], rgb_vis, 'Layer - 20'+i,true); // disable the RGB layer by default
+  Map.addLayer(ndvi[j], ndvi_vis, 'NDVI_Layer - 20'+i);
+  j++;
+}
+
